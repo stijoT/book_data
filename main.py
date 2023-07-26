@@ -2,10 +2,10 @@ import requests
 import psycopg2
 from bs4 import BeautifulSoup
 
-links = ['http://books.toscrape.com/catalogue/category/books/mystery_3/index.html',
-         'http://books.toscrape.com/catalogue/category/books/philosophy_7/index.html',
-         ]
+links = []
 list=[]
+
+#function to get data from a single book and store data to list
 def get_book_data(url):
     html_txt = requests.get(url).text
     soup = BeautifulSoup(html_txt, 'html.parser')
@@ -41,6 +41,8 @@ def get_book_data(url):
     tup=(title,rating,description,upc,p_type,price_e,price_i,tax,avail,review_no,genre)
     list.append(tup)
 
+
+#function to get all the links to all books in that page and give it to get_book_data()
 def scrape_from_page(url):
     html_txt = requests.get(url).text
     soup = BeautifulSoup(html_txt, 'html.parser')
@@ -55,16 +57,34 @@ def scrape_from_page(url):
 
 
 
+#Logic to display and all genres in the web
+html_txt = requests.get('http://books.toscrape.com/index.html').text
+soup = BeautifulSoup(html_txt, 'html.parser')
+sub=soup.find('ul', class_='nav nav-list')
+sub=sub.find_all('a')
+print('\nAvailable Genre\n')
+for things in sub:
+    print(things.text.strip())
+string=input('\nSelect your required Genre(separate with *):')
+string=string.split('*')
+
+#logic to add links of selected Genres to main list to be scraped
+for genre in string:
+    for value in sub:
+        if(genre == value.text.strip()):
+            new='http://books.toscrape.com/'+value['href']
+            links.append(new)
 
 
+print('\n\nTitle of required books :')
 
-
-
+#scraping logic starts here
 for url in links:
     scrape_from_page(url)
     html_txt = requests.get(url).text
     soup = BeautifulSoup(html_txt, 'html.parser')
     next_link = soup.find('li', class_='next')
+    #check if a next page exists if yes scrape it
     while (next_link != None):
         next_link = next_link.a['href']
         ind = url.rindex('/')  # returns 6 if in complex case
@@ -78,6 +98,9 @@ for url in links:
         soup = BeautifulSoup(html_txt, 'html.parser')
         next_link = soup.find('li', class_='next')
 
+
+
+#code to add all the data to psql
 conn = psycopg2.connect(database="clone", user = "postgres", password = "password", host = "127.0.0.1", port = "5433")
 cur=conn.cursor()
 cur.execute('DROP TABLE IF EXISTS books')
@@ -102,26 +125,3 @@ for data in list:
 conn.commit()
 cur.close()
 conn.close()
-
-
-
-
-
-
-
-
-# for link in links:
-#     page_val = requests.get(link).text
-#     extract = BeautifulSoup(page_val, 'html.parser')
-#     nex_val=extract.find('li',class_='next')
-#     print(nex_val,link)
-
-
-# boxes=soup.find_all('tr',class_='css-1cxc880')
-#
-# for box in boxes:
-#     count=box.find('td',class_='css-w6jew4').text
-#     name=box.find('p',class_='chakra-text css-rkws3').text
-#     code=box.find('span',class_='chakra-text css-1jj7b1a').text
-#     current=box.find('p',class_='chakra-text css-5a8n3t').text
-#     print(f'{count} : {name}({code}) - \ncurrent price : {current}\n')
